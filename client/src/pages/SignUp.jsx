@@ -1,8 +1,50 @@
-import { Button, Label, TextInput } from 'flowbite-react'
-import { Link } from 'react-router-dom'
-import { HiMail } from "react-icons/hi";
+import { Alert, Button, Label, Spinner, TextInput } from 'flowbite-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { HiMail, HiInformationCircle } from "react-icons/hi";
+import { useState } from 'react';
 
 export default function SignUp() {
+  const [formData, setFormData] = useState({})
+  const [errorMessage, setErrorMessage] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.id]: e.target.value.trim()
+    })
+  };
+  const handleSubmit = async (e) =>{
+    e.preventDefault();
+    if (!formData.username || !formData.email || !formData.password) {
+      return setErrorMessage("Please fill out all fields.");  
+    }
+    try {
+      setLoading(true);
+      setErrorMessage(null);
+      const res = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(formData)
+    });
+    const data = await res.json();
+    if (data.success===false) {
+      setLoading(false);
+      return setErrorMessage(data.message);
+    }
+    setLoading(false);
+    if (res.ok){
+      navigate('/sign-in');
+    }    
+    } catch (error) {
+      setErrorMessage(error.message);
+      setLoading(false);
+    }
+
+  };
   return (
     <div className='min-h-screen mt-20'>
       <div className="flex p-3 max-w-3xl mx-auto flex-col md:flex-row
@@ -23,20 +65,28 @@ export default function SignUp() {
         </div>
         {/* right side */}
         <div className="flex-1">
-          <form className='flex flex-col gap-4'>
+          <form className='flex flex-col gap-4' onSubmit={handleSubmit}>
             <div>
               <Label >Your username</Label>
-              <TextInput type='text' id="username" placeholder="Username" addon="@" required />
+              <TextInput type='text' id="username" placeholder="Username" addon="@" required onChange={handleChange}/>
             </div>
             <div>
               <Label >Your email</Label>
-              <TextInput type='email' id="email" placeholder="name@company.com" icon={HiMail} required />
+              <TextInput type='email' id="email" placeholder="name@company.com" icon={HiMail} required onChange={handleChange}/>
             </div>
             <div>
               <Label >Your password</Label>
-              <TextInput type='password' id="password" placeholder="Password"/>
+              <TextInput type='password' id="password" placeholder="Password"onChange={handleChange}/>
             </div>
-            <Button className="bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:bg-gradient-to-l focus:ring-purple-200 dark:focus:ring-purple-800" type="submit">Sign Up</Button>
+            <Button className="bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:bg-gradient-to-l focus:ring-purple-200 dark:focus:ring-purple-800" type="submit" disabled={loading}>
+              {
+                loading ? (
+                  <>
+                  <Spinner size="sm" aria-label="Info spinner example" className="me-3" light />
+                  <span className='pl-3'>Loading...</span>
+                  </>
+                ): 'Sign Up'}
+            </Button>
           </form>
           <div className="flex gap-2 text-sm mt-5">
             <span>Have an account?</span>
@@ -44,6 +94,13 @@ export default function SignUp() {
               Sign In
             </Link>
           </div>
+          {
+            errorMessage && (
+              <Alert className='mt-5' color='failure' icon={HiInformationCircle}>
+                {errorMessage}
+              </Alert>
+            )
+          }
         </div>
       </div>
     </div>
