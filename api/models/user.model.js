@@ -14,7 +14,11 @@ const userSchema = new momgoose.Schema({
     password: {
         type: String,
         required: true
-    }
+    },
+    profilePicture: {
+        type: String,
+        default: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRU0a0iDtUPUzs0GFM6DSuovK0uOE4-Sc40Pg&s",
+    },
 }, { timestamps: true });
 
 const User = momgoose.model('User', userSchema);
