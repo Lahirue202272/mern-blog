@@ -1,3 +1,7 @@
 @import "tailwindcss";
+
+/* Tailwind v4: make `dark:` use the `.dark` class instead of prefers-color-scheme */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @import "flowbite-react/plugin/tailwindcss";
 @source "../.flowbite-react/class-list.json";
