@@ -19,6 +19,10 @@ const userSchema = new momgoose.Schema({
         type: String,
         default: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRU0a0iDtUPUzs0GFM6DSuovK0uOE4-Sc40Pg&s",
     },
+    isAdmin: {
+        type: Boolean,
+        default: false
+    },
 }, { timestamps: true });
 
 const User = momgoose.model('User', userSchema);
