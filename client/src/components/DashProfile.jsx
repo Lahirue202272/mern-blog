@@ -8,13 +8,14 @@ import { CircularProgressbar } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 import { updateStart, updateSuccess, updateFailure, deleteUserStart, deleteUserSuccess, deleteUserFailure, signOutSuccess } from "../redux/user/userSlice";
 import { useDispatch } from "react-redux";
+import { Link } from 'react-router-dom';
 
 
 
 
 
 export default function DashProfile() {
-    const {currentUser, error} = useSelector((state) => state.user)
+    const {currentUser, error, loading} = useSelector((state) => state.user)
     const [imageFile, setImageFile] = useState(null);
     const [imageFileUrl, setImageFileUrl] = useState(null);
     const [imageFileUploadingProgress, setImageFileUploadingProgress] = useState(null);
@@ -212,9 +213,17 @@ export default function DashProfile() {
              defaultValue={currentUser.email} icon={HiMail}onChange={handleChange}/>
              <TextInput type="password" id="password" placeholder="password"onChange={handleChange}/>
              <Button type="submit" className="text-black-600 bg-transparent hover:text-white hover:bg-gradient-to-br hover:from-purple-600 hover:to-blue-500
-              focus:ring-4 focus:ring-blue-300 transition-all duration-300" outline>
-                Update
+              focus:ring-4 focus:ring-blue-300 transition-all duration-300" outline disabled={loading || imageFileUploading} >
+                {loading ? 'Loading...' : 'Update'}
              </Button>
+              {currentUser.isAdmin && (
+                <Link to={'/create-post'}>
+                  <Button type='button' className="text-black-600 bg-transparent hover:text-white hover:bg-gradient-to-br hover:from-purple-600 hover:to-blue-500
+                  focus:ring-4 focus:ring-blue-300 transition-all duration-300 w-full">
+                    Create a post
+                  </Button>
+                </Link>
+              )}
         </form>
         <div className="text-red-500 flex justify-between mt-5">
             <span onClick={()=> setShowModal(true)} className="cursor-pointer hover:underline">Delete Account</span>
