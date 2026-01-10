@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@plugin "tailwind-scrollbar";
+
 /* Tailwind v4: make `dark:` use the `.dark` class instead of prefers-color-scheme */
 @custom-variant dark (&:where(.dark, .dark *));
 
