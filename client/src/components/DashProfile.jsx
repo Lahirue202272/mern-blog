@@ -6,7 +6,7 @@ import {useSelector} from "react-redux"
 import { app } from "../firebase";
 import { CircularProgressbar } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
-import { updateStart, updateSuccess, updateFailure, deleteUserStart, deleteUserSuccess, deleteUserFailure } from "../redux/user/userSlice";
+import { updateStart, updateSuccess, updateFailure, deleteUserStart, deleteUserSuccess, deleteUserFailure, signOutSuccess } from "../redux/user/userSlice";
 import { useDispatch } from "react-redux";
 
 
@@ -155,6 +155,22 @@ export default function DashProfile() {
         dispatch(deleteUserFailure(error.message));
       }
     };
+
+    const handleSignOut = async () => {
+      try {
+        const res = await fetch('/api/user/signout', {
+          method: 'POST',
+        });
+        const data = await res.json();  
+        if (!res.ok) {
+          console.log(data.message);
+        } else{
+          dispatch(signOutSuccess());
+        }
+      } catch (error) {
+        console.log(error.message);
+      }
+    };
     
   return (
     <div className="max-w-lg mx-auto p-3 w-full">
@@ -202,7 +218,7 @@ export default function DashProfile() {
         </form>
         <div className="text-red-500 flex justify-between mt-5">
             <span onClick={()=> setShowModal(true)} className="cursor-pointer hover:underline">Delete Account</span>
-            <span className="cursor-pointer hover:underline">Sign Out</span>
+            <span onClick={handleSignOut} className="cursor-pointer hover:underline">Sign Out</span>
         </div>
         {updateUserSuccess && (
           <Alert color="success" className="mt-5">
