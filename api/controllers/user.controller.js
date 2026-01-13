@@ -1,6 +1,7 @@
 import bcryptjs from 'bcryptjs';
 import { errorHandler } from '../utils/error.js';
 import User from '../models/user.model.js';
+import { parse } from 'dotenv';
 
 export const test = (req, res) => {
     res.json({ message: 'API is working' });
@@ -71,6 +72,49 @@ export const signOut = async (req, res, next) => {
   try {
     res.clearCookie('access_token');
     res.status(200).json('Signed out successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getUsers = async (req, res, next) => {
+  if (!req.user.isAdmin) {
+    return next(errorHandler(403, 'You are not allowed to view all users'));
+  }
+
+  try {
+    const startIndex = parseInt(req.query.startIndex) || 0;
+    const limit = parseInt(req.query.limit) || 9;
+    const sortDirection = req.query.sort === 'asc' ? 1 : -1;
+    const users = await User.find()
+      .sort({ createdAt: sortDirection })
+      .skip(startIndex)
+      .limit(limit);
+
+      const usersWithoutPasswords = users.map(user => {
+        const { password, ...rest } = user._doc;
+        return rest;
+      });
+
+      const totalUsers = await User.countDocuments();
+
+      const now = new Date();
+
+      const oneMonth = new Date(
+        now.getFullYear(),
+        now.getMonth() - 1,
+        now.getDate()
+      );
+
+      const lastMonthUsers = await User.countDocuments({
+        createdAt: { $gte: oneMonth }
+      });
+
+    res.status(200).json({
+      users: usersWithoutPasswords,
+      totalUsers,
+      lastMonthUsers,
+    });
   } catch (error) {
     next(error);
   }
