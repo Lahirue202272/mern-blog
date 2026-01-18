@@ -1,5 +1,5 @@
 import { Sidebar, SidebarItem, SidebarItemGroup, SidebarItems } from "flowbite-react";
-import { HiArrowSmRight, HiUser, HiDocumentText, HiOutlineUserGroup, HiBookOpen, HiAnnotation } from "react-icons/hi";
+import { HiArrowSmRight, HiUser, HiDocumentText, HiOutlineUserGroup, HiBookOpen } from "react-icons/hi";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { signOutSuccess } from "../redux/user/userSlice";
@@ -71,7 +71,7 @@ export default function DashSidebar() {
             <Link to='/dashboard?tab=comments'>
               <SidebarItem
                 active={tab === 'comments'}
-                icon={HiAnnotation}
+                icon={HiBookOpen}
                 as='div'
               >
                 Comments
