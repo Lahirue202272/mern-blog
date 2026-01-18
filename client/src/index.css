@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @plugin "tailwind-scrollbar";
-@plugin "@tailwindcss/line-clamp";
+/* @plugin "@tailwindcss/line-clamp"; */
 
 /* Tailwind v4: make `dark:` use the `.dark` class instead of prefers-color-scheme */
 @custom-variant dark (&:where(.dark, .dark *));
