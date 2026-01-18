@@ -169,7 +169,7 @@ export default function Search() {
                     ))
                 }
                 {
-                    showMore && <button onClick={handleShowMore} className="text-teal-500 text-lg hover: p-7 w-full">
+                    showMore && <button onClick={handleShowMore} className="text-teal-500 text-lg hover:underline cursor-pointer p-7 w-full">
                         Show More
                     </button>
                 }
