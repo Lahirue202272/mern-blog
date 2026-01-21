@@ -1,14 +1,23 @@
 # Full-Stack MERN Blog Application
 
-A modern, production-ready **Full Stack MERN Blog Application** built using **MongoDB, Express.js, React, and Node.js**, featuring secure authentication, advanced search, image management, and an admin dashboard. This project demonstrates real-world full-stack development practices and is suitable for portfolio showcasing.
+
+A modern, production-ready **Full Stack MERN Blog Application** built using **MongoDB, Express.js, React, and Node.js**, featuring secure authentication, advanced search, image management, an admin dashboard and a complete **Dockerized CI/CD workflow**. This project demonstrates real-world full-stack development.
 
 ---
 
 ## Project Overview
 
-This project is a complete blog and content management platform developed with the latest MERN stack technologies. It focuses on scalability, security, and user experience, implementing industry-standard authentication, optimized database queries, and modern frontend practices.
 
-The application supports user authentication, blog creation and management, image uploads, smart searching, and an admin dashboard for full system control.
+
+
+This project is a complete blog and content management platform developed with the latest MERN stack technologies. It focuses on scalability, security, and user experience, implementing industry-standard authentication, optimized database queries, and a modern, responsive frontend.
+
+The application supports:
+- Secure user authentication
+- Blog creation and management
+- Image uploads with cloud storage
+- Advanced search and filtering
+- Admin-level system control
 
 ---
 
@@ -49,12 +58,13 @@ The application supports user authentication, blog creation and management, imag
 - **React 18** with functional components and hooks
 - **Redux Toolkit** for state management
 - **React Router DOM** for dynamic routing
-- **Tailwind CSS** for responsive and modern UI design
+- **Tailwind CSS & Flowbite** for responsive and modern UI design
 
-###  Deployment
-- Fully deployed using the **Render** platform
-- Production-ready configuration
-- Suitable for public sharing and portfolio demonstration
+## DevOps & Deployment
+- Dockerized frontend and backend with separate Dockerfiles
+- Docker Compose for service orchestration
+- CI/CD pipeline implemented using GitHub Actions
+- Deployed on Render with production-ready configuration
 
 ---
 
@@ -76,8 +86,8 @@ The application supports user authentication, blog creation and management, imag
 - Google OAuth
 - Firebase Storage
 
-**Deployment**
-- Render
+**DevOps & Deployment:**  
+- Docker, Docker Compose, GitHub Actions, Render
 
 ---
 
