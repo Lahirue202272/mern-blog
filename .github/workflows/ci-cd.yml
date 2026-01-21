@@ -60,8 +60,14 @@ jobs:
           npm ci --no-audit --fund=false
           npm ci --prefix client --no-audit --fund=false
 
-      - name: Lint
-        run: npm run lint
+      - name: Lint (root, if present)
+        run: npm run lint --if-present
+
+      - name: Lint (client)
+        run: npm --prefix client run lint
+
+      - name: Backend syntax check
+        run: node --check api/index.js
 
   # JOB 2: Test (placeholder)
 
