@@ -136,10 +136,12 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.RENDER_DEPLOY_HOOK != ''
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     timeout-minutes: 5
+    env:
+      RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
     outputs:
-      result: ${{ steps.render-hook.outputs.result }}
+      result: ${{ steps.render-hook.outputs.result || steps.check-hook.outputs.result }}
     steps:
       - name: Download frontend artifact
         uses: actions/download-artifact@v4
@@ -147,10 +149,21 @@ jobs:
           name: client-dist
           path: client/dist
 
+      - name: Check Render deploy hook
+        id: check-hook
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK" ]; then
+            echo "result=skipped" >> "$GITHUB_OUTPUT"
+            echo "Render deploy hook not configured; skipping deploy."
+          else
+            echo "result=ready" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Trigger Render Deploy Hook
         id: render-hook
+        if: steps.check-hook.outputs.result == 'ready'
         run: |
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X GET "${{ secrets.RENDER_DEPLOY_HOOK }}" || echo "000")
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X GET "$RENDER_DEPLOY_HOOK" || echo "000")
           echo "HTTP Response: $RESPONSE"
 
           if [ "$RESPONSE" != "200" ] && [ "$RESPONSE" != "202" ]; then
@@ -164,7 +177,7 @@ jobs:
   print-deploy-outcome:
     needs: deploy
     runs-on: ubuntu-latest
-    if: always() && needs.deploy.result != 'skipped'
+    if: always()
     steps:
       - name: Print deploy result
         run: |
