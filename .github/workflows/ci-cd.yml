@@ -71,7 +71,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Print test placeholder
-        run: echo "No tests yet, skipping test job..."
+        run: echo "test job..."
 
   # JOB 3: Build
 
