@@ -98,8 +98,8 @@ jobs:
       - name: Trigger Render Deploy Hook
         id: deploy
         run: |
-          if [ -z "${{ secrets.RENDER_DEPLOY_HOOK_MERN_BLOG }}" ]; then
-            echo "Error: RENDER_DEPLOY_HOOK_MERN_BLOG secret is not set or empty."
+          if [ -z "${{ secrets.RENDER_WEBHOOK_MERN_BLOG }}" ]; then
+            echo "Error: RENDER_WEBHOOK_MERN_BLOG secret is not set or empty."
             echo "result=true" >> $GITHUB_OUTPUT
             exit 1
           fi
