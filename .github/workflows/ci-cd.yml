@@ -7,16 +7,37 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mern-blog-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
 
 jobs:
-  # =========================
   # JOB 1: Lint
-  # =========================
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
 
       - name: Cache dependencies
         id: cache
@@ -25,25 +46,27 @@ jobs:
           path: |
             node_modules
             client/node_modules
-          key: deps-${{ hashFiles('**/package-lock.json') }}
+          key: deps-${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('package-lock.json', 'client/package-lock.json') }}
 
       - name: Install root dependencies
         if: steps.cache.outputs.cache-hit != 'true'
-        run: npm install
+        run: npm ci
 
       - name: Install frontend dependencies
         if: steps.cache.outputs.cache-hit != 'true'
-        run: npm install --prefix client
+        run: npm ci --prefix client
 
-      - name: Run lint
+      - name: Run lint (root, if present)
         run: npm run lint --if-present
 
-  # =========================
+      - name: Run lint (client)
+        run: npm --prefix client run lint
+
   # JOB 2: Test (placeholder)
-  # =========================
   test:
     runs-on: ubuntu-latest
     needs: lint
+    timeout-minutes: 5
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -51,15 +74,23 @@ jobs:
       - name: Print test placeholder
         run: echo "No tests yet, skipping test job..."
 
-  # =========================
   # JOB 3: Build
-  # =========================
   build:
     runs-on: ubuntu-latest
     needs: test
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
 
       - name: Cache dependencies
         id: cache
@@ -68,15 +99,15 @@ jobs:
           path: |
             node_modules
             client/node_modules
-          key: deps-${{ hashFiles('**/package-lock.json') }}
+          key: deps-${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('package-lock.json', 'client/package-lock.json') }}
 
       - name: Install root dependencies
         if: steps.cache.outputs.cache-hit != 'true'
-        run: npm install
+        run: npm ci
 
       - name: Install frontend dependencies
         if: steps.cache.outputs.cache-hit != 'true'
-        run: npm install --prefix client
+        run: npm ci --prefix client
 
       - name: Build frontend
         id: build-frontend
@@ -90,12 +121,14 @@ jobs:
           name: dist-files
           path: client/dist
 
-  # =========================
   # JOB 4: Deploy
-  # =========================
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 5
+    outputs:
+      result: ${{ steps.render-hook.outputs.result || steps.no-hook.outputs.result }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -106,41 +139,50 @@ jobs:
           name: dist-files
           path: client/dist
 
-      - name: Trigger Render Deploy Hook
-        id: deploy
+      - name: Check deploy hook configured
+        id: no-hook
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
         run: |
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X GET "${{ secrets.RENDER_DEPLOY_HOOK }}")
-          echo "HTTP Response: $RESPONSE"
-          if [ "$RESPONSE" -ne 200 ] && [ "$RESPONSE" -ne 202 ]; then
-            echo "DEPLOYMENT_FAILED=true" >> $GITHUB_ENV
-            exit 1
-          else
-            echo "DEPLOYMENT_FAILED=false" >> $GITHUB_ENV
+          if [ -z "$RENDER_DEPLOY_HOOK" ]; then
+            echo "result=skipped" >> "$GITHUB_OUTPUT"
+            echo "Render deploy hook missing; skipping deploy."
           fi
 
+      - name: Trigger Render Deploy Hook
+        id: render-hook
+        if: steps.no-hook.outputs.result != 'skipped'
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X GET "$RENDER_DEPLOY_HOOK" || echo "000")
+          echo "HTTP Response: $RESPONSE"
+          if [ "$RESPONSE" -ne 200 ] && [ "$RESPONSE" -ne 202 ]; then
+            echo "result=failure" >> "$GITHUB_OUTPUT"
+            exit 1
+          else
+            echo "result=success" >> "$GITHUB_OUTPUT"
+          fi
 
-
-      - name: Set output for deploy result
-        run: echo "result=${DEPLOYMENT_FAILED}" >> $GITHUB_OUTPUT
-
-  # =========================
   # JOB 5: Print Deployment Outcome
-  # =========================
+
   print-deploy-outcome:
     needs: deploy
     runs-on: ubuntu-latest
+    if: always()
     steps:
       - name: Print deploy result
         run: |
-          if [ "${{ needs.deploy.outputs.result }}" == "true" ]; then
-            echo "Deployment failed!"
-          else
-            echo "Deployment succeeded!"
+          RESULT="${{ needs.deploy.outputs.result }}"
+          if [ -z "$RESULT" ]; then RESULT="unknown"; fi
+          echo "Deploy status: $RESULT"
+
+          if [ "$RESULT" = "failure" ]; then
+            exit 1
           fi
 
-  # =========================
   # JOB 6: Failure Report
-  # =========================
+
   failure-report:
     needs: [lint, test, build, deploy]
     if: failure()
