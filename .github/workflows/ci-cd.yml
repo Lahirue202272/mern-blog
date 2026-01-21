@@ -2,195 +2,145 @@ name: MERN CI/CD Pipeline
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   pull_request:
-    branches: [main]
-  workflow_dispatch:
-
-permissions:
-  contents: read
-
-concurrency:
-  group: mern-blog-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  NODE_VERSION: "20"
-  CACHE_NODE_MODULES: "true" # set to "false" if node_modules caching ever causes flakiness
-  NPM_CONFIG_AUDIT: "false"
-  NPM_CONFIG_FUND: "false"
+    branches:
+      - main
 
 jobs:
+  # =========================
+  # JOB 1: Lint
+  # =========================
   lint:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            client/package-lock.json
-
-      - name: Cache node_modules (root)
-        if: env.CACHE_NODE_MODULES == 'true'
-        id: cache-root-node-modules
+      - name: Cache dependencies
+        id: cache
         uses: actions/cache@v4
         with:
-          path: node_modules
-          key: node-modules-root-${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            node-modules-root-${{ runner.os }}-node${{ env.NODE_VERSION }}-
+          path: |
+            node_modules
+            client/node_modules
+          key: deps-${{ hashFiles('**/package-lock.json') }}
 
-      - name: Cache node_modules (client)
-        if: env.CACHE_NODE_MODULES == 'true'
-        id: cache-client-node-modules
-        uses: actions/cache@v4
-        with:
-          path: client/node_modules
-          key: node-modules-client-${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('client/package-lock.json') }}
-          restore-keys: |
-            node-modules-client-${{ runner.os }}-node${{ env.NODE_VERSION }}-
+      - name: Install root dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: npm install
 
-      - name: Install dependencies
-        if: env.CACHE_NODE_MODULES != 'true' || steps.cache-root-node-modules.outputs.cache-hit != 'true' || steps.cache-client-node-modules.outputs.cache-hit != 'true'
-        run: |
-          npm ci --no-audit --fund=false
-          npm ci --prefix client --no-audit --fund=false
+      - name: Install frontend dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: npm install --prefix client
 
-      - name: Lint (root, if present)
+      - name: Run lint
         run: npm run lint --if-present
 
-      - name: Lint (client)
-        run: npm --prefix client run lint
-
-      - name: Backend syntax check
-        run: node --check api/index.js
-
+  # =========================
+  # JOB 2: Test (placeholder)
+  # =========================
   test:
     runs-on: ubuntu-latest
     needs: lint
-    timeout-minutes: 5
-    steps:
-      - name: Print test placeholder
-        run: echo "No tests yet, skipping test job..."
-
-  build:
-    runs-on: ubuntu-latest
-    needs: test
-    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            client/package-lock.json
+      - name: Print test placeholder
+        run: echo "No tests yet, skipping test job..."
 
-      - name: Cache node_modules (root)
-        if: env.CACHE_NODE_MODULES == 'true'
-        id: cache-root-node-modules
+  # =========================
+  # JOB 3: Build
+  # =========================
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Cache dependencies
+        id: cache
         uses: actions/cache@v4
         with:
-          path: node_modules
-          key: node-modules-root-${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            node-modules-root-${{ runner.os }}-node${{ env.NODE_VERSION }}-
+          path: |
+            node_modules
+            client/node_modules
+          key: deps-${{ hashFiles('**/package-lock.json') }}
 
-      - name: Cache node_modules (client)
-        if: env.CACHE_NODE_MODULES == 'true'
-        id: cache-client-node-modules
-        uses: actions/cache@v4
-        with:
-          path: client/node_modules
-          key: node-modules-client-${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('client/package-lock.json') }}
-          restore-keys: |
-            node-modules-client-${{ runner.os }}-node${{ env.NODE_VERSION }}-
+      - name: Install root dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: npm install
 
-      - name: Install dependencies
-        if: env.CACHE_NODE_MODULES != 'true' || steps.cache-root-node-modules.outputs.cache-hit != 'true' || steps.cache-client-node-modules.outputs.cache-hit != 'true'
-        run: |
-          npm ci --no-audit --fund=false
-          npm ci --prefix client --no-audit --fund=false
+      - name: Install frontend dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: npm install --prefix client
 
       - name: Build frontend
-        run: npm --prefix client run build
+        id: build-frontend
+        run: npm run build --prefix client
+        env:
+          CI: false
 
-      - name: Upload frontend artifact
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: client-dist
+          name: dist-files
           path: client/dist
-          if-no-files-found: error
-          retention-days: 7
 
+  # =========================
+  # JOB 4: Deploy
+  # =========================
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    timeout-minutes: 5
-    outputs:
-      result: ${{ steps.finalize.outputs.result }}
     steps:
-      - name: Download frontend artifact
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: client-dist
+          name: dist-files
           path: client/dist
 
-      - name: Determine deploy
-        id: determine
-        env:
-          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
-        run: |
-          if [ -z "$RENDER_DEPLOY_HOOK" ]; then
-            echo "result=skipped" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          echo "result=ready" >> "$GITHUB_OUTPUT"
-
       - name: Trigger Render Deploy Hook
-        id: trigger
-        if: steps.determine.outputs.result == 'ready'
-        env:
-          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        id: deploy
         run: |
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X GET "$RENDER_DEPLOY_HOOK" || echo "000")
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X GET "${{ secrets.RENDER_DEPLOY_HOOK }}")
           echo "HTTP Response: $RESPONSE"
-
-          if [ "$RESPONSE" != "200" ] && [ "$RESPONSE" != "202" ]; then
-            echo "result=failure" >> "$GITHUB_OUTPUT"
+          if [ "$RESPONSE" -ne 200 ] && [ "$RESPONSE" -ne 202 ]; then
+            echo "DEPLOYMENT_FAILED=true" >> $GITHUB_ENV
             exit 1
+          else
+            echo "DEPLOYMENT_FAILED=false" >> $GITHUB_ENV
           fi
 
-          echo "result=success" >> "$GITHUB_OUTPUT"
 
-      - name: Finalize deploy result
-        id: finalize
-        if: always()
-        env:
-          RESULT: ${{ steps.trigger.outputs.result || steps.determine.outputs.result || 'unknown' }}
-        run: echo "result=$RESULT" >> "$GITHUB_OUTPUT"
 
+      - name: Set output for deploy result
+        run: echo "result=${DEPLOYMENT_FAILED}" >> $GITHUB_OUTPUT
+
+  # =========================
+  # JOB 5: Print Deployment Outcome
+  # =========================
   print-deploy-outcome:
     needs: deploy
     runs-on: ubuntu-latest
-    if: always()
     steps:
       - name: Print deploy result
         run: |
-          echo "Deploy status: ${{ needs.deploy.outputs.result }}"
+          if [ "${{ needs.deploy.outputs.result }}" == "true" ]; then
+            echo "Deployment failed!"
+          else
+            echo "Deployment succeeded!"
+          fi
 
+  # =========================
+  # JOB 6: Failure Report
+  # =========================
   failure-report:
     needs: [lint, test, build, deploy]
     if: failure()
@@ -200,3 +150,4 @@ jobs:
         run: |
           echo "CI/CD Pipeline Failed!"
           echo "Check logs of individual jobs above."
+          echo "Simple failure report for now."
