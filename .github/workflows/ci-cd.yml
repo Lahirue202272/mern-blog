@@ -1,0 +1,187 @@
+name: MERN CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mern-blog-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # JOB 1: Lint
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      NPM_CONFIG_AUDIT: "false"
+      NPM_CONFIG_FUND: "false"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
+
+      - name: Cache node_modules (root)
+        id: cache-root-node-modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-root-${{ runner.os }}-node20-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            node-modules-root-${{ runner.os }}-node20-
+
+      - name: Cache node_modules (client)
+        id: cache-client-node-modules
+        uses: actions/cache@v4
+        with:
+          path: client/node_modules
+          key: node-modules-client-${{ runner.os }}-node20-${{ hashFiles('client/package-lock.json') }}
+          restore-keys: |
+            node-modules-client-${{ runner.os }}-node20-
+
+      - name: Install dependencies
+        if: steps.cache-root-node-modules.outputs.cache-hit != 'true' || steps.cache-client-node-modules.outputs.cache-hit != 'true'
+        run: |
+          npm ci --no-audit --fund=false
+          npm ci --prefix client --no-audit --fund=false
+
+      - name: Lint
+        run: npm run lint
+
+  # JOB 2: Test (placeholder)
+
+  test:
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 5
+    steps:
+      - name: Print test placeholder
+        run: echo "No tests yet, skipping test job..."
+
+  # JOB 3: Build
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    timeout-minutes: 15
+    env:
+      NPM_CONFIG_AUDIT: "false"
+      NPM_CONFIG_FUND: "false"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
+
+      - name: Cache node_modules (root)
+        id: cache-root-node-modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-root-${{ runner.os }}-node20-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            node-modules-root-${{ runner.os }}-node20-
+
+      - name: Cache node_modules (client)
+        id: cache-client-node-modules
+        uses: actions/cache@v4
+        with:
+          path: client/node_modules
+          key: node-modules-client-${{ runner.os }}-node20-${{ hashFiles('client/package-lock.json') }}
+          restore-keys: |
+            node-modules-client-${{ runner.os }}-node20-
+
+      - name: Install dependencies
+        if: steps.cache-root-node-modules.outputs.cache-hit != 'true' || steps.cache-client-node-modules.outputs.cache-hit != 'true'
+        run: |
+          npm ci --no-audit --fund=false
+          npm ci --prefix client --no-audit --fund=false
+
+      - name: Build frontend
+        id: build-frontend
+        run: npm --prefix client run build
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-dist
+          path: client/dist
+          if-no-files-found: error
+          retention-days: 7
+
+
+  # JOB 4: Deploy
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.RENDER_DEPLOY_HOOK != ''
+    timeout-minutes: 5
+    outputs:
+      result: ${{ steps.render-hook.outputs.result }}
+    steps:
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: client-dist
+          path: client/dist
+
+      - name: Trigger Render Deploy Hook
+        id: render-hook
+        run: |
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X GET "${{ secrets.RENDER_DEPLOY_HOOK }}" || echo "000")
+          echo "HTTP Response: $RESPONSE"
+
+          if [ "$RESPONSE" != "200" ] && [ "$RESPONSE" != "202" ]; then
+            echo "result=failure" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+          echo "result=success" >> "$GITHUB_OUTPUT"
+
+  # JOB 5: Print Deployment Outcome
+  print-deploy-outcome:
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: always() && needs.deploy.result != 'skipped'
+    steps:
+      - name: Print deploy result
+        run: |
+          RESULT="${{ needs.deploy.outputs.result }}"
+          if [ -z "$RESULT" ]; then
+            RESULT="unknown"
+          fi
+          echo "Deploy status: $RESULT"
+
+  # JOB 6: Failure Report
+  failure-report:
+    needs: [lint, test, build, deploy]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Output failure message
+        run: |
+          echo "CI/CD Pipeline Failed!"
+          echo "Check logs of individual jobs above."
+          echo "Simple failure report for now."
