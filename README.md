@@ -61,6 +61,10 @@ It supports:
 - Monitor recent activity
 - Full administrative control
 
+#### Admin Dashboard Preview
+![Admin Dashboard](https://github.com/user-attachments/assets/a79e8f53-fb3c-48cf-abe4-0ce68ecb4893)
+
+
 ###  Modern Frontend Stack
 - **React 18** with functional components and hooks
 - **Redux Toolkit** for state management
